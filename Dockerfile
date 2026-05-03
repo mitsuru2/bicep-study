@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # 最新のDebian環境を使用。Bicepの勉強目的なのでNode.js版ではない素のDebian。
-# - Docker Hub (Node.js): https://hub.docker.com/_/debian
+# - Docker Hub (Debian): https://hub.docker.com/_/debian
 # - Debian: https://wiki.debian.org/DebianReleases#Current_Debian_Releases_and_repositories
 FROM debian:trixie
 
