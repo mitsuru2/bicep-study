@@ -25,7 +25,13 @@
 				"esbenp.prettier-vscode",
 				"google.geminicodeassist",
 				"ms-azuretools.vscode-bicep"
-			]
+			],
+			"settings": {
+				"editor.formatOnSave": true,
+				"[bicep]": {
+					"editor.defaultFormatter": "ms-azuretools.vscode-bicep"
+				}
+			}
 		}
 	},
 
