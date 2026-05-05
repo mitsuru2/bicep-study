@@ -36,5 +36,15 @@
 	},
 
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
-	"remoteUser": "node"
+	"remoteUser": "node",
+
+	// Add the Azure and Gemini volumes to the container to keep credentials persistent.
+	"mounts": [
+		"source=azure,target=/home/node/.azure,type=volume",
+		"source=gemini,target=/home/node/.gemini,type=volume",
+		"source=gemini-cache,target=/home/node/.cache/google-vscode-extension,type=volume"
+	],
+
+	// Check if the user is logged in to Azure CLI after the container is created.
+	"postCreateCommand": "bash .devcontainer/post.sh"
 }
