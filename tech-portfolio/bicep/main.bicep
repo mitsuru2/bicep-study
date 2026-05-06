@@ -102,7 +102,7 @@ resource cosmosRoleAssignmentOwner 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
-// データプレーンへのアクセスを許可するロール割り当て
+// データプレーンへのアクセスを許可するロール割り当て (ビルド時にデータを取得するために必要)
 var cosmosDataPlaneReadOnlyRoleId string = '00000000-0000-0000-0000-000000000001'
 var cosmosDataPlaneReadWriteRoleId string = '00000000-0000-0000-0000-000000000002'
 resource cosmosDataPlaneRoleAssignmentApp 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2025-10-15' = {
@@ -145,7 +145,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2025-08-01' = {
 }
 
 // IAMロールの割り当て
-var storageBlobDataReaderRoleId string = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+var storageBlobDataReaderRoleId string = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1' // ビルド時にリソースをDLするために使用
 var storageBlobDataContributorRoleId string = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 resource storageRoleAssignmentApp 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storageAccount.id, principalId, storageBlobDataReaderRoleId)
@@ -166,5 +166,140 @@ resource storageRoleAssignmentOwner 'Microsoft.Authorization/roleAssignments@202
       storageBlobDataContributorRoleId
     )
     principalType: 'User'
+  }
+}
+
+//------------------------------------------------------------------------------
+// Container Registry
+// https://learn.microsoft.com/ja-jp/azure/container-registry/container-registry-get-started-bicep?tabs=CLI
+//------------------------------------------------------------------------------
+// Container Registry の構成
+var acrName string = '${accountNameBase}acr'
+var acrSku string = 'Basic'
+
+// Container Registry の作成
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2025-11-01' = {
+  name: acrName
+  location: location
+  sku: {
+    name: acrSku
+  }
+  properties: {
+    adminUserEnabled: false
+    anonymousPullEnabled: false
+  }
+}
+
+// IAMロールの割り当て
+var acrPushRoleId string = '8311e382-0749-4cb8-b61a-304f252e45ec'
+resource acrRoleAssignmentApp 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, principalId, acrPushRoleId)
+  scope: containerRegistry
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPushRoleId)
+    principalType: 'ServicePrincipal'
+  }
+}
+
+//------------------------------------------------------------------------------
+// Container Apps
+// https://learn.microsoft.com/ja-jp/azure/templates/microsoft.app/containerapps?pivots=deployment-language-bicep
+//------------------------------------------------------------------------------
+
+// ユーザー割り当てマネージド ID の作成 (ACR プル用)
+resource containerAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
+  name: '${accountNameBase}-aca-identity'
+  location: location
+}
+
+// ユーザー割り当て ID への AcrPull ロール割り当て
+var acrPullRoleId string = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, containerAppIdentity.id, acrPullRoleId)
+  scope: containerRegistry
+  properties: {
+    principalId: containerAppIdentity.properties.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Container Apps 環境の作成
+resource managedEnvironment 'Microsoft.App/managedEnvironments@2026-01-01' = {
+  name: '${accountNameBase}-aca-environment'
+  location: location
+  properties: {
+    zoneRedundant: false
+  }
+}
+
+// Container App の作成
+resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
+  name: '${accountNameBase}-aca'
+  location: location
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: managedEnvironment.id
+    configuration: {
+      activeRevisionsMode: 'Multiple'
+      ingress: {
+        external: true
+        targetPort: 4000
+        allowInsecure: false
+        traffic: [
+          {
+            latestRevision: true
+            weight: 100
+          }
+        ]
+      }
+      registries: [
+        {
+          server: containerRegistry.properties.loginServer
+          identity: containerAppIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: '${accountNameBase}-aca-container'
+          // ACRにイメージがない間は、パブリックのHello Worldイメージを使用する
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          resources: { cpu: json('0.5'), memory: '1Gi' }
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 10
+        rules: [
+          {
+            http: { metadata: { concurrentRequests: '50' } }
+            name: 'http-scaler'
+          }
+        ]
+      }
+    }
+  }
+}
+
+// GitHub Actions などの外部サービスから Container App を管理するためのロール割り当て
+var acaContributorRoleId string = '358470bc-b998-42bd-ab17-a7e34c199c0f'
+resource acaContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerApp.id, principalId, acaContributorRoleId)
+  scope: containerApp
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acaContributorRoleId)
+    principalType: 'ServicePrincipal'
   }
 }

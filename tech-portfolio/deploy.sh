@@ -5,10 +5,22 @@ set -euo pipefail
 # スクリプトディレクトリを取得
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-RG_NAME='rg-tech-portfolio-ioc'
+# 定数定義
+RG_NAME='rg-tech-portfolio'
 APP_NAME='github-mitsuru2-docker-nodejs-study'
 GITHUB_ORG='mitsuru2'
 GITHUB_REPO='docker-nodejs-study'
+
+# Azureログイン確認
+# az account show コマンドを実行して、Azure CLIにログインしているか確認します。結果はnullにリダイレクトして表示しない。
+if ! az account show > /dev/null 2>&1; then
+  echo "Please login to Azure CLI using 'az login' command."
+  exit 1
+fi
+
+# リソースグループの作成
+# すでに存在する場合はエラーになりますが、--output none で出力を抑制しているため、エラーが発生しません。
+az group create --name "$RG_NAME" --location japaneast --output none
 
 # Terraformでアプリ登録
 cd "$SCRIPT_DIR/terraform"
@@ -22,7 +34,7 @@ terraform apply -auto-approve \
 PRINCIPAL_ID=$(terraform output -raw principal_id)
 
 # オーナーユーザーのオブジェクトIDを取得
-OWNER_PRINCIPAL_ID=$(az ad user show --id "mitsuru.takahashi.biz_gmail.com#EXT#@mitsurutakahashibizgmail.onmicrosoft.com" --query id -o tsv)
+OWNER_PRINCIPAL_ID=$(az ad signed-in-user show --query id -o tsv)
 echo "owner_principal_id = \"$OWNER_PRINCIPAL_ID\""
 echo ""
 
