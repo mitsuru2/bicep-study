@@ -11,6 +11,7 @@ FROM debian:trixie
 # - CURL: CLIダウンロードのため。
 # - locales: ロケール設定警告回避のため。
 # - libicudev: Bicep CLIで必要。
+# - wget: Terraform CLIのインストールに必要。
 # Note: インストール後にキャッシュを削除。イメージサイズ抑制のため。
 RUN apt-get update && apt-get install -y \
     sudo \
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     locales \
     libicu-dev \
+    wget \
     && rm -rf /var/lib/apt/lists/* \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen
@@ -30,6 +32,13 @@ ENV LC_ALL=en_US.UTF-8
 # Azure CLIのインストール。
 # https://learn.microsoft.com/ja-jp/cli/azure/install-azure-cli-linux?view=azure-cli-latest&pivots=apt
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Terraformのインストール
+# https://developer.hashicorp.com/terraform/install
+RUN wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list \
+    && apt-get update && apt-get install -y terraform \
+    && rm -rf /var/lib/apt/lists/*
 
 # 非rootユーザーの追加 (既存のNode.js環境と合わせてユーザー名はnode)
 # sudoコマンドを許可するために/etc/sudoers.dフォルダ以下にユーザー名のファイルを追加。
