@@ -9,6 +9,8 @@ terraform {
 
 provider "azuread" {}
 
+data "azuread_client_config" "current" {}
+
 variable "app_name" {
   type        = string
   description = "The display name of the Azure AD application"
@@ -27,11 +29,13 @@ variable "github_repo" {
 # アプリケーション登録
 resource "azuread_application" "app" {
   display_name = var.app_name
+  owners       = [data.azuread_client_config.current.object_id]
 }
 
 # サービスプリンシパル
 resource "azuread_service_principal" "sp" {
   client_id = azuread_application.app.client_id
+  owners    = [data.azuread_client_config.current.object_id]
 }
 
 # OIDCフェデレーション資格情報
