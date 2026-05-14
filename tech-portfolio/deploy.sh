@@ -39,8 +39,8 @@ echo "owner_principal_id = \"$OWNER_PRINCIPAL_ID\""
 echo ""
 
 # デフォルトのコンテナイメージ
-CONTAINER_IMAGE=mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
-# CONTAINER_IMAGE=b5lamds6tm4ioacr.azurecr.io/app-runtime:sha-0e055eb
+# CONTAINER_IMAGE=mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
+CONTAINER_IMAGE=b5lamds6tm4ioacr.azurecr.io/app-runtime:sha-0e055eb
 
 # Bicepでリソースをデプロイ
 cd "$SCRIPT_DIR/bicep"
