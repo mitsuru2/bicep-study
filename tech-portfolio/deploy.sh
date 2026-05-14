@@ -38,6 +38,10 @@ OWNER_PRINCIPAL_ID=$(az ad signed-in-user show --query id -o tsv)
 echo "owner_principal_id = \"$OWNER_PRINCIPAL_ID\""
 echo ""
 
+# デフォルトのコンテナイメージ
+CONTAINER_IMAGE=mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
+# CONTAINER_IMAGE=b5lamds6tm4ioacr.azurecr.io/app-runtime:sha-0e055eb
+
 # Bicepでリソースをデプロイ
 cd "$SCRIPT_DIR/bicep"
 DEPLOYMENT_NAME="main-$(date +%Y%m%d-%H%M%S)"
@@ -45,6 +49,7 @@ az deployment group create \
   --name "$DEPLOYMENT_NAME" \
   --resource-group "$RG_NAME" \
   --template-file main.bicep \
-  --parameters principalId="$PRINCIPAL_ID" ownerPrincipalId="$OWNER_PRINCIPAL_ID"
+  --parameters principalId="$PRINCIPAL_ID" ownerPrincipalId="$OWNER_PRINCIPAL_ID" containerImage="$CONTAINER_IMAGE" \
 
 echo "Deploy completed."
+echo ""

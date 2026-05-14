@@ -10,6 +10,9 @@ param principalId string
 @description('The object ID of the owner principal. This should be a valid Azure AD user or service principal object ID.')
 param ownerPrincipalId string
 
+@description('The container image to deploy.')
+param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
 //------------------------------------------------------------------------------
 // Cosmos DB
 // https://learn.microsoft.com/ja-jp/azure/cosmos-db/quickstart-template-bicep?toc=%2Fazure%2Fazure-resource-manager%2Fbicep%2Ftoc.json&tabs=CLI
@@ -207,19 +210,20 @@ resource acrRoleAssignmentApp 'Microsoft.Authorization/roleAssignments@2022-04-0
 // https://learn.microsoft.com/ja-jp/azure/templates/microsoft.app/containerapps?pivots=deployment-language-bicep
 //------------------------------------------------------------------------------
 
-// ユーザー割り当てマネージド ID の作成 (ACR プル用)
-resource containerAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
-  name: '${accountNameBase}-aca-identity'
+// ユーザー割り当てマネージド ID の作成 (コンテナ実行環境で共通利用)
+// ACAやWeb AppからACRにアクセス（Pull）するために使用
+resource workloadIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
+  name: '${accountNameBase}-workload-identity'
   location: location
 }
 
-// ユーザー割り当て ID への AcrPull ロール割り当て
+// 上記で作成したユーザー割り当て ID への AcrPull ロール割り当て
 var acrPullRoleId string = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
 resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, containerAppIdentity.id, acrPullRoleId)
+  name: guid(containerRegistry.id, workloadIdentity.id, acrPullRoleId)
   scope: containerRegistry
   properties: {
-    principalId: containerAppIdentity.properties.principalId
+    principalId: workloadIdentity.properties.principalId
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
     principalType: 'ServicePrincipal'
   }
@@ -244,7 +248,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${containerAppIdentity.id}': {}
+      '${workloadIdentity.id}': {}
     }
   }
   properties: {
@@ -265,7 +269,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          identity: containerAppIdentity.id
+          identity: workloadIdentity.id
         }
       ]
     }
@@ -274,7 +278,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
         {
           name: '${accountNameBase}-aca-container'
           // ACRにイメージがない間は、パブリックのHello Worldイメージを使用する
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          image: containerImage
           resources: { cpu: json('0.5'), memory: '1Gi' }
         }
       ]
@@ -301,5 +305,72 @@ resource acaContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2
     principalId: principalId
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acaContributorRoleId)
     principalType: 'ServicePrincipal'
+  }
+}
+
+//------------------------------------------------------------------------------
+// Azure App Services
+// https://learn.microsoft.com/ja-jp/azure/app-service/provision-resource-bicep?pivots=app-service-bicep-linux
+//------------------------------------------------------------------------------
+// App Service Plan
+var appServicePlanName string = '${accountNameBase}-webapp-plan'
+resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
+  name: appServicePlanName
+  location: location
+  properties: {
+    reserved: true // Linux OS のプランを作成する場合は true に設定する必要があります。
+  }
+  kind: 'linux'
+  sku: { name: 'B1' }
+}
+
+// Web App インスタンス
+var webAppName string = '${accountNameBase}-webapp'
+resource webApp 'Microsoft.Web/sites@2025-03-01' = {
+  name: webAppName
+  location: location
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
+  kind: 'app,linux'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${workloadIdentity.id}': {} // 作成済みのマネージドIDを紐付け (ACAと共通利用)
+    }
+  }
+  properties: {
+    serverFarmId: appServicePlan.id // 紐付ける App Service Plan の ID
+    httpsOnly: true // HTTP アクセスを HTTPS に強制リダイレクト
+    siteConfig: {
+      linuxFxVersion: 'DOCKER|${containerImage}' // Web App for Containers で使用するイメージを指定
+      acrUseManagedIdentityCreds: true // ACR からのプルにマネージドIDを使用する設定
+      acrUserManagedIdentityID: workloadIdentity.properties.clientId // ACR プルに使用するマネージドIDのクライアントID
+      ftpsState: 'FtpsOnly' // FTPSのみを許可
+      minTlsVersion: '1.2' // 最小TLSバージョンを1.2に設定
+      http20Enabled: true // HTTP 2.0を有効化
+      alwaysOn: true // コンテナのコールドスタートを防ぎ、応答性を維持するために有効化
+      appSettings: [
+        { name: 'WEBSITES_PORT', value: '4000' } // Angularのポートを設定
+      ]
+    }
+  }
+}
+
+// FTP接続 (パスワードアクセスを不許可)
+resource webAppFtp 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-03-01' = {
+  parent: webApp
+  name: 'ftp'
+  properties: {
+    allow: false
+  }
+}
+
+// SCM (Kudu) 接続 (パスワードアクセスを不許可)
+resource webAppScm 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-03-01' = {
+  parent: webApp
+  name: 'scm'
+  properties: {
+    allow: false
   }
 }
