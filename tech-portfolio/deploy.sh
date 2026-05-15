@@ -40,7 +40,7 @@ echo ""
 
 # デフォルトのコンテナイメージ
 # CONTAINER_IMAGE=mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
-CONTAINER_IMAGE=b5lamds6tm4ioacr.azurecr.io/app-runtime:sha-0e055eb
+CONTAINER_IMAGE=b5lamds6tm4ioacr.azurecr.io/app-runtime:sha-46d62af
 
 # Bicepでリソースをデプロイ
 cd "$SCRIPT_DIR/bicep"

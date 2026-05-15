@@ -374,3 +374,15 @@ resource webAppScm 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-
     allow: false
   }
 }
+
+// GitHub Actions などの外部サービスから Container App を管理するためのロール割り当て
+var webAppContributorRoleId string = 'de139f84-1756-47ae-9be6-808fbbe84772'
+resource webAppContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(webApp.id, principalId, webAppContributorRoleId)
+  scope: webApp
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', webAppContributorRoleId)
+    principalType: 'ServicePrincipal'
+  }
+}
