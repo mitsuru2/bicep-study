@@ -46,10 +46,10 @@ resource "azuread_application_federated_identity_credential" "oidc_main" {
   subject        = "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"
   audiences      = ["api://AzureADTokenExchange"]
 }
-resource "azuread_application_federated_identity_credential" "oidc_restricted" {
+resource "azuread_application_federated_identity_credential" "oidc_approval" {
   application_id = azuread_application.app.id
-  display_name   = "github-oidc-restricted"
+  display_name   = "github-oidc-approval"
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_org}/${var.github_repo}:environment:restricted"
+  subject        = "repo:${var.github_org}/${var.github_repo}:environment:approval"
   audiences      = ["api://AzureADTokenExchange"]
 }
