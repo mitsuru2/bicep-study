@@ -7,3 +7,4 @@ sudo chown -R node:node /home/node/.azure
 sudo chown -R node:node /home/node/.gemini
 sudo chown -R node:node /home/node/.cache/google-vscode-extension
 az account show
+az bicep upgrade

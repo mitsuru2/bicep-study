@@ -375,7 +375,7 @@ resource webAppScm 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-
   }
 }
 
-// GitHub Actions などの外部サービスから Container App を管理するためのロール割り当て
+// GitHub Actions などの外部サービスから Web App を管理するためのロール割り当て
 var webAppContributorRoleId string = 'de139f84-1756-47ae-9be6-808fbbe84772'
 resource webAppContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(webApp.id, principalId, webAppContributorRoleId)
@@ -383,6 +383,39 @@ resource webAppContributorRoleAssignment 'Microsoft.Authorization/roleAssignment
   properties: {
     principalId: principalId
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', webAppContributorRoleId)
+    principalType: 'ServicePrincipal'
+  }
+}
+
+//------------------------------------------------------------------------------
+// Azure Static Web App
+//------------------------------------------------------------------------------
+// Static Web App の構成
+var swaName string = '${accountNameBase}-swa'
+var swaSku string = 'Free'
+var swaLocation string = 'eastasia' // Japanリージョン非サポートのため
+
+// Static Web App の作成
+resource swa 'Microsoft.Web/staticSites@2025-03-01' = {
+  name: swaName
+  location: swaLocation
+  sku: {
+    name: swaSku
+  }
+  properties: {
+    stagingEnvironmentPolicy: 'Enabled'
+  }
+}
+
+// GitHub ActionsからStatic Web Appsにアクセスするためのロール割り当て
+// SWA専用ロールがないため、Azure全体のContributorを使用。スコープをSWAにしているため問題なし。
+var swaContributorRoleId string = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+resource swaContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(swa.id, principalId, swaContributorRoleId)
+  scope: swa
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', swaContributorRoleId)
     principalType: 'ServicePrincipal'
   }
 }
