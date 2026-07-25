@@ -1,0 +1,23 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "KEY_VAULT_URI": "https://<kv-name>.vault.azure.net/",
+    "STORAGE_ACCOUNT_NAME": "<storage-account-name>",
+    "JOBS_QUEUE_NAME": "aci-runner-jobs",
+    "RUNNER_INSTANCES_TABLE_NAME": "RunnerInstances",
+    "ACR_LOGIN_SERVER": "<acr-name>.azurecr.io",
+    "RUNNER_IMAGE_REPOSITORY": "gha-runner",
+    "RUNNER_IMAGE_TAG": "latest",
+    "ACI_PULL_IDENTITY_RESOURCE_ID": "/subscriptions/<sub-id>/resourceGroups/rg-tech-portfolio-runner/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>-aci-pull-identity",
+    "ACI_RESOURCE_GROUP_NAME": "rg-tech-portfolio-runner",
+    "ACI_LOCATION": "japaneast",
+    "AZURE_SUBSCRIPTION_ID": "<sub-id>",
+    "GITHUB_APP_ID": "4374525",
+    "GITHUB_APP_INSTALLATION_ID": "148492753",
+    "GITHUB_REPO_FULL_NAME": "mitsuru2/docker-nodejs-study",
+    "RUNNER_LABEL": "aci-runner",
+    "LOG_ANALYTICS_WORKSPACE_ID": "<log-analytics-workspace-customer-id>"
+  }
+}

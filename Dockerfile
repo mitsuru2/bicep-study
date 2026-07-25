@@ -3,7 +3,8 @@
 # 最新のDebian環境を使用。Bicepの勉強目的なのでNode.js版ではない素のDebian。
 # - Docker Hub (Debian): https://hub.docker.com/_/debian
 # - Debian: https://wiki.debian.org/DebianReleases#Current_Debian_Releases_and_repositories
-FROM debian:trixie
+# FROM debian:trixie
+FROM node:24-bookworm
 
 # OSへのツールインストール (apt)
 # - Git: DevContainer環境でのgit操作のため。
@@ -21,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     locales \
     libicu-dev \
     wget \
+    zip \
     && rm -rf /var/lib/apt/lists/* \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen
@@ -33,6 +35,14 @@ ENV LC_ALL=en_US.UTF-8
 # https://learn.microsoft.com/ja-jp/cli/azure/install-azure-cli-linux?view=azure-cli-latest&pivots=apt
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
+# Install Azure Functions Core Tools to enable local development of Azure Functions in the container.
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg \
+    && mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg \
+    && . /etc/os-release && sudo echo "deb [arch=amd64] https://packages.microsoft.com/debian/$VERSION_ID/prod $VERSION_CODENAME main" > /etc/apt/sources.list.d/dotnetdev.list \
+    && apt-get update && apt-get install -y \
+    azure-functions-core-tools-4 \
+    jq
+
 # Terraformのインストール
 # https://developer.hashicorp.com/terraform/install
 RUN wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
@@ -40,10 +50,8 @@ RUN wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /us
     && apt-get update && apt-get install -y terraform \
     && rm -rf /var/lib/apt/lists/*
 
-# 非rootユーザーの追加 (既存のNode.js環境と合わせてユーザー名はnode)
 # sudoコマンドを許可するために/etc/sudoers.dフォルダ以下にユーザー名のファイルを追加。
-RUN useradd --create-home --shell /bin/bash --uid 1000 node \
-    && mkdir -p /etc/sudoers.d \
+RUN mkdir -p /etc/sudoers.d \
     && echo "node ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/node \
     && chmod 0440 /etc/sudoers.d/node
 

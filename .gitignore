@@ -2,3 +2,9 @@
 .terraform/
 terraform.tfstate
 terraform.tfstate.backup
+
+# Azure Functions
+node_modules/
+local.settings.json
+bin/
+obj/
