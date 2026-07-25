@@ -80,4 +80,3 @@ az resource invoke-action \
 echo ""
 echo "Deployment completed."
 echo "  Webhook URL: https://$(az functionapp show -g "$RG_NAME" -n "$FUNC_APP" --query defaultHostName -o tsv)/api/webhook"
-f

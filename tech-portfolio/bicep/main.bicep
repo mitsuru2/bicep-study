@@ -205,6 +205,19 @@ resource acrRoleAssignmentApp 'Microsoft.Authorization/roleAssignments@2022-04-0
   }
 }
 
+// az acr build (ACR Tasks) の実行にはAcrPushだけでは不足しており、Contributorが必要。
+// 影響範囲を抑えるため、リソースグループ全体ではなくACRリソース単体にスコープする。
+var contributorRoleId string = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+resource acrTasksRoleAssignmentApp 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, principalId, contributorRoleId)
+  scope: containerRegistry
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', contributorRoleId)
+    principalType: 'ServicePrincipal'
+  }
+}
+
 //------------------------------------------------------------------------------
 // Container Apps
 // https://learn.microsoft.com/ja-jp/azure/templates/microsoft.app/containerapps?pivots=deployment-language-bicep
