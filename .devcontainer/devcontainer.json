@@ -23,8 +23,8 @@
 		"vscode": {
 			"extensions": [
 				"esbenp.prettier-vscode",
-				"google.geminicodeassist",
-				"ms-azuretools.vscode-bicep"
+				"ms-azuretools.vscode-bicep",
+				"anthropic.claude-code"
 			],
 			"settings": {
 				"editor.formatOnSave": true,
